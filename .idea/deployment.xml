@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="nahad3@bmedyer-gpu2.neuro.gatech.edu:22" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true">
+    <serverData>
+      <paths name="nahad3@bmedyer-gpu.neuro.gatech.edu:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/nahad3/pycharm/active_instance_clfr" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="nahad3@bmedyer-gpu2.neuro.gatech.edu:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/nethome/nahad3/pycharm/active_learning" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
