@@ -71,7 +71,24 @@ def train_soruce(model_feats,model_clfr,train_dataloader,args,device,wanb_con,va
 
 
 
+def get_balanced_samples(dataloader,no_classes,no_points):
 
+    'goes through all batches and gets balanced number of samples for each class across each batch. Returns list (no batches x (no_points/no_batches)'
+
+    btch2list = list(dataloader)
+    no_batches = len(btch2list)
+    no_points_p_class = int(no_points /(no_batches * no_classes))
+    out_list = np.zeros((no_batches,int(no_points/no_batches)))
+    for k in range(0,no_batches):
+        y = btch2list[k]['y_src'].reshape(-1,)
+
+        for i in range(0,no_classes):
+            y_idx = np.where(y == i)[0]
+            np.random.shuffle(y_idx)
+            #y_idx = np.random.shuffle(np.where(y == i)[0])[0:no_points_p_class]
+            out_list[k,i*(no_points_p_class):(i+1)*(no_points_p_class)] = y_idx[0:no_points_p_class]
+
+    return out_list
 def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_con,val_dataload):
     '''Loop for actively training. Starts off with a pool of samples.
     Then completely train (all epochs) using this pool.
@@ -86,11 +103,25 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
     'randomly train with budget'
 
-
+    model_feats_dict = model_feats.state_dict()
+    model_clfr_dict = model_clfr.state_dict()
+    optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src,
+                             weight_decay=1e-4)
+    #scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=500, gamma=0.1)
+    torch.save({
+        'epoch': 0,
+        'model_state_dict': model_feats.state_dict(),
+        'optimizer_state_dict': optim.state_dict()
+    }, args.file_path_save_src_feats)
+    torch.save({
+        'epoch': 0,
+        'model_state_dict': model_clfr.state_dict(),
+        'optimizer_state_dict': optim.state_dict()
+    }, args.file_path_save_src_clfr)
     criterion_clfr = torch.nn.CrossEntropyLoss()
-    params = OrderedDict(model_feats.named_parameters())
-    optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.StepLR(optim,step_size = 500,gamma=0.1 )
+    #params = OrderedDict(model_feats.named_parameters())
+    #optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src, weight_decay=1e-4)
+    #scheduler = torch.optim.lr_scheduler.StepLR(optim,step_size = 500,gamma=0.1 )
     b_val_loss = 1e5
     'need to add ssl loss'
     no_batches  = len(train_dataloader)
@@ -98,10 +129,12 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     no_labels_p_batch = len(list(train_dataloader)[0]['y_src'].reshape(-1,))
 
     #start with random number of initial samples (equivalent ot the number of queries)
-    rand_intial_samples = np.random.choice(np.arange(0, no_labels_p_batch), size=args.no_queries)
 
+    '''rand_intial_samples = np.random.choice(np.arange(0, no_labels_p_batch), size=args.no_queries)
+    pool= rand_intial_samples.reshape(no_batches,-1)'''
 
-    pool= rand_intial_samples.reshape(no_batches,-1)
+    #get balanced samples for pool
+    pool= get_balanced_samples(train_dataloader, 5, no_points=args.no_queries)
 
     no_loops = int(args.total_budget/(args.no_queries))
 
@@ -109,6 +142,14 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     wandb.define_metric("Active/*", step_metric="queries step")
 
     for k in range(0,no_loops):
+        checkpoint = torch.load(args.file_path_save_src_feats)
+        model_feats.load_state_dict(checkpoint['model_state_dict'])
+        checkpoint = torch.load(args.file_path_save_src_clfr)
+        model_clfr.load_state_dict(checkpoint['model_state_dict'])
+        params = OrderedDict(model_feats.named_parameters())
+        #optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src,
+        #                         weight_decay=1e-4)
+        scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=500, gamma=0.1)
         model_feats.train()
         model_clfr.train()
         for ep in range(0, args.no_epochs):
@@ -174,6 +215,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     print(f"F1 score {f1_score} at epoch {ep}")
                     print(f"Accuracy {acc} at epoch {ep}")
                     if np.mean(loss_array_val) <= b_val_loss:
+                        '''
                         torch.save({
                             'epoch': ep,
                             'model_state_dict': model_feats.state_dict(),
@@ -185,6 +227,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                             'optimizer_state_dict': optim.state_dict()
                         }, args.file_path_save_src_clfr)
                         print("Saving")
+                        '''
                         b_val_loss = np.mean(loss_array_val)
 
             wanb_con.log({f"Loss train {k}": np.mean(loss_array_train)})
