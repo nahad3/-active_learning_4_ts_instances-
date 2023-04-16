@@ -30,7 +30,7 @@ parser.add_argument('--model_pth',type=str,default='saved_models_ssl/ssl_save_ro
 parser.add_argument('--test', type=int,default=0, help='test or not')
 parser.add_argument('--total_budget',type=int,default = 100,help="total number of training points (total pool at the end of all training)")
 parser.add_argument('--no_queries', type=int,default=20, help='No of queries to add to pool after each training session')
-parser.add_argument('--query_type',type=int,default=0,help='{0: for random queriy 1: for max entropy}')
+parser.add_argument('--query_type',type=int,default=2,help='{0: for random queriy 1: for max entropy 2: for entropy frequency} ')
 parser.add_argument('--train', type=int,default=1, help='train or not')
 parser.add_argument('--batch_size', type=int,default=12, help='train or not')
 parser.add_argument('--visualize', type=int,default=0, help='train or not')
@@ -61,7 +61,9 @@ proj_dims =66
 
 #path for trained SSL model
 
-assert args.query_type == 0 or args.query_type == 1,  f"Query type should be either 0 for random or 1 for max entropy. Got: {args.query_type}"
+assert args.query_type == 0 or args.query_type == 1 or args.query_type == 2,  \
+    f"Query type should be either 0 for random or 1 for max entropy or 2 for custom method. Got: {args.query_type}"
+
 
 if not os.path.exists(args.file_path_model_base):
     os.makedirs(args.file_path_model_base)
@@ -108,7 +110,7 @@ dataset = LeggedRobotsDataset_semisup_DA(data_path,window=args.window,stride=str
 no_classes = dataset.no_classes
 train_idx, test_idx = train_test_split(np.arange(len(dataset)), test_size=0.3, random_state=42)
 
-train_loader = DataLoader(dataset, batch_size=batch_size, drop_last=True,sampler=train_idx)
+train_loader = DataLoader(dataset, batch_size=batch_size, drop_last=True,sampler= np.sort(train_idx))
 val_loader = DataLoader(dataset, batch_size=64, drop_last=False,sampler=test_idx)
 
 temp = list(train_loader)

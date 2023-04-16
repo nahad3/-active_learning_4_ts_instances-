@@ -181,7 +181,7 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
     #fig1, axs1 = plt.subplots(4, 1, figsize=(15, 5))
     params = OrderedDict(model_feats.named_parameters())
     model_feats.to(device)
-    x = torch.from_numpy(x).to(device).unsqueeze(0)
+    x = torch.from_numpy(x)[:,:].to(device).unsqueeze(0)
 
     if window == -1:
         #src_lbl_clfr = model_clfr(x_src_feats)
@@ -217,6 +217,6 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
     plt.tight_layout()
     fig_path = f'figures/DA/rob_lab_1{title}_{str(window)}.pdf'
     #fig.suptitle(title)
-    plt.show()
+    #plt.show()
     return fig
     #fig.savefig(fig_path)
