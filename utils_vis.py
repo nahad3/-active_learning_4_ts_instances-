@@ -3,28 +3,10 @@ import numpy as np
 import umap
 import torch
 from collections import OrderedDict
-from sklearn.manifold import TSNE
 from torch import nn
-from torch.autograd import Variable
-from skimage.restoration import denoise_tv_bregman
 
-class TVLoss(nn.Module):
-    def __init__(self,TVLoss_weight=1):
-        super(TVLoss,self).__init__()
-        self.TVLoss_weight = TVLoss_weight
 
-    def forward(self,x):
-        batch_size = x.size()[0]
-        h_x = x.size()[1]
 
-        count_h = h_x
-
-        h_tv = torch.pow((x[:,1:,:]-x[:,h_x-1,:]),2).sum()
-
-        return self.TVLoss_weight*2*(h_tv/count_h)/batch_size
-
-    def _tensor_size(self,t):
-        return t.size()[1]*t.size()[2]*t.size()[3]
 
 def get_invariant_feats(model_feats,model_da, device, test_loader,use_ssl=1,only_ssl=1,no_da=0):
     'no_da: no domain adaptation'
@@ -198,7 +180,6 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
         z = z.swapaxes(1, 2)
         reps = model(z, params).detach().cpu()
         reps = reps.reshape(-1,reps.shape[-1])
-    TV = TVLoss()
 
 
     fig, ax = plt.subplots(5, 1, sharex=True)

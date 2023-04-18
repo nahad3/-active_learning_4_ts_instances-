@@ -4,6 +4,8 @@ Requirements:
 python3.6+
 Pytorch
 Wandb
+plotly
+umap
 
 
 run main_run.py
