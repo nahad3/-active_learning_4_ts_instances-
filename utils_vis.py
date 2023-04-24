@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import umap
+#import umap
 import torch
 from collections import OrderedDict
 from torch import nn

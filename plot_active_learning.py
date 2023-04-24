@@ -13,8 +13,8 @@ num_trials = 5
 x = np.arange(n_samples, n_total+1, n_samples)
 # x = range(0, n_total, n_samples)
 
-file_list = ['./results/result_Experimental method.npz','./results/result_random.npz','./results/result_max entropy.npz']
-color_list = ['b','g','r'] # ','tab:red','tab:green']
+file_list = ['./results/result_InfoNN.npz','./results/result_Experimental method.npz','./results/result_Coreset.npz','./results/result_max entropy.npz','./results/result_random.npz']
+color_list = ['b','g','r','y','m'] # ','tab:red','tab:green']
 fig, ax = plt.subplots()
 
 for k in range(0,len(file_list)):
@@ -29,7 +29,7 @@ for k in range(0,len(file_list)):
 
 
 # ax.legend(["Info-NN(with clustering)", "K-Center", "MaxEntropy", "Margin Sampling", "BatchBALD", "Random"], loc=4)
-leg = plt.legend(["Experimental method",  "Random","Max k entropy"], loc=4, prop={'size': 30})
+leg = plt.legend(["Info-NN", "Experimental method", "Coreset", "Max k entropy","Random"], loc=4, prop={'size': 30})
 leg.get_frame().set_facecolor('none')
 leg.get_frame().set_linewidth(0.0)
 plt.xticks(x)
@@ -37,4 +37,4 @@ plt.xlabel('Number of labels')
 plt.ylabel('Classification Accuracy')
 
 fig.set_size_inches(12, 9)
-plt.savefig('./results/plots/experinment1.png', dpi=100, bbox_inches='tight')
+plt.savefig('./results/plots/experinment4.png', dpi=100, bbox_inches='tight')

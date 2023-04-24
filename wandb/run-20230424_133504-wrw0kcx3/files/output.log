@@ -1,0 +1,77 @@
+total_train_points : 100
+Query selection method: max entropy
+Run number: 0
+F1 score at the end of round 0 : 0.5519894934501792
+Acc score at the end of round 0 : 0.6810555555555555
+Training with no points in pool 40
+F1 score at the end of round 1 : 0.5504309300415469
+Acc score at the end of round 1 : 0.6317222222222222
+Training with no points in pool 60
+F1 score at the end of round 2 : 0.6146943183933857
+Acc score at the end of round 2 : 0.7442222222222222
+Training with no points in pool 80
+F1 score at the end of round 3 : 0.6777644326788985
+Acc score at the end of round 3 : 0.7932222222222223
+Training with no points in pool 100
+F1 score at the end of round 4 : 0.6887468162629038
+Acc score at the end of round 4 : 0.8037222222222222
+Run number: 1
+F1 score at the end of round 0 : 0.44040133884984806
+Acc score at the end of round 0 : 0.5708333333333333
+Training with no points in pool 40
+F1 score at the end of round 1 : 0.52836478444622
+Acc score at the end of round 1 : 0.7016666666666667
+Training with no points in pool 60
+F1 score at the end of round 2 : 0.5528478860264728
+Acc score at the end of round 2 : 0.7186111111111111
+Training with no points in pool 80
+F1 score at the end of round 3 : 0.5843896433586406
+Acc score at the end of round 3 : 0.7493888888888889
+Training with no points in pool 100
+F1 score at the end of round 4 : 0.5709735689918549
+Acc score at the end of round 4 : 0.7053333333333334
+Run number: 2
+F1 score at the end of round 0 : 0.5394169863634153
+Acc score at the end of round 0 : 0.6727222222222222
+Training with no points in pool 40
+F1 score at the end of round 1 : 0.5956768154162204
+Acc score at the end of round 1 : 0.7172222222222222
+Training with no points in pool 60
+F1 score at the end of round 2 : 0.6338444319109773
+Acc score at the end of round 2 : 0.7465
+Training with no points in pool 80
+F1 score at the end of round 3 : 0.6775249603063006
+Acc score at the end of round 3 : 0.7782222222222223
+Training with no points in pool 100
+F1 score at the end of round 4 : 0.7058308029894902
+Acc score at the end of round 4 : 0.7930555555555555
+Run number: 3
+F1 score at the end of round 0 : 0.5273795800810006
+Acc score at the end of round 0 : 0.6317777777777778
+Training with no points in pool 40
+F1 score at the end of round 1 : 0.5933547225556752
+Acc score at the end of round 1 : 0.7307777777777777
+Training with no points in pool 60
+F1 score at the end of round 2 : 0.5777397097059641
+Acc score at the end of round 2 : 0.7227222222222223
+Training with no points in pool 80
+F1 score at the end of round 3 : 0.5990599812839212
+Acc score at the end of round 3 : 0.7320555555555556
+Training with no points in pool 100
+F1 score at the end of round 4 : 0.6275769864200182
+Acc score at the end of round 4 : 0.7517222222222222
+Run number: 4
+F1 score at the end of round 0 : 0.4203897370414196
+Acc score at the end of round 0 : 0.46394444444444444
+Training with no points in pool 40
+F1 score at the end of round 1 : 0.5254802397261245
+Acc score at the end of round 1 : 0.6307222222222222
+Training with no points in pool 60
+F1 score at the end of round 2 : 0.576410702290505
+Acc score at the end of round 2 : 0.7173333333333334
+Training with no points in pool 80
+F1 score at the end of round 3 : 0.6671009150827836
+Acc score at the end of round 3 : 0.7843333333333333
+Training with no points in pool 100
+F1 score at the end of round 4 : 0.7811832911177007
+Acc score at the end of round 4 : 0.8507222222222223

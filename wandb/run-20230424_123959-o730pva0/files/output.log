@@ -1,0 +1,10 @@
+total_train_points : 100
+Query selection method: InfoNN
+Run number: 0
+F1 score at the end of round 0 : 0.5031269688036769
+Acc score at the end of round 0 : 0.5643888888888889
+Traceback (most recent call last):
+  File "/home/namrata/Dropbox (GaTech)/-active_learning_4_ts_instances-/main_run.py", line 189, in <module>
+    f1_score_list,acc_list,_ = train_active_loop(model_feats=model_feats, device=device, args=args, model_clfr=model_clfr,
+  File "/home/namrata/Dropbox (GaTech)/-active_learning_4_ts_instances-/active_learning_loop.py", line 385, in train_active_loop
+    pseudo_labels, candidate_queries, dist_std, mu = form_queries(embeddings_u, embeddings_l, labels)

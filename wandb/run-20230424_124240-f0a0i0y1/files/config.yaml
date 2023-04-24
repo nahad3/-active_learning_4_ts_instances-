@@ -1,0 +1,108 @@
+wandb_version: 1
+
+no_runs:
+  desc: null
+  value: 5
+gpu:
+  desc: null
+  value: 0
+src_dom:
+  desc: null
+  value: B
+trgt_dom:
+  desc: null
+  value: C
+load:
+  desc: null
+  value: 0
+save_path_results:
+  desc: null
+  value: ./results/
+model_pth:
+  desc: null
+  value: saved_models_ssl/ssl_save_robots_no_fixed
+test:
+  desc: null
+  value: 0
+total_budget:
+  desc: null
+  value: 100
+no_queries:
+  desc: null
+  value: 20
+query_type:
+  desc: null
+  value: 4
+train:
+  desc: null
+  value: 1
+batch_size:
+  desc: null
+  value: 12
+visualize:
+  desc: null
+  value: 0
+dof:
+  desc: null
+  value: pos
+backbone_path:
+  desc: null
+  value: ./saved_models_ssl/robo_tcn/robo_TS2Vec_bbone_new
+dataset_type:
+  desc: null
+  value: small
+weight_target_sup:
+  desc: null
+  value: 1
+lr_src:
+  desc: null
+  value: 0.0001
+no_epochs:
+  desc: null
+  value: 401
+file_path_model_base:
+  desc: null
+  value: ./saved_models/robo_tcn
+window:
+  desc: null
+  value: 1500
+stride:
+  desc: null
+  value: 1500
+path_pre_active_model:
+  desc: null
+  value: ./saved_models/first_round_models
+train_pre_acq_model:
+  desc: null
+  value: false
+file_path_save_src_feats:
+  desc: null
+  value: ./saved_models/robo_tcn/robo_src_feats_saved
+file_path_save_src_clfr:
+  desc: null
+  value: ./saved_models/robo_tcn/robo_src_clfr_saved
+data_path:
+  desc: null
+  value: updated_robot_data/legged_robots_v1.npy
+_wandb:
+  desc: null
+  value:
+    python_version: 3.9.13
+    cli_version: 0.15.0
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1682354560.341347
+    t:
+      1:
+      - 1
+      - 5
+      - 53
+      - 55
+      3:
+      - 16
+      - 23
+      4: 3.9.13
+      5: 0.15.0
+      8:
+      - 5

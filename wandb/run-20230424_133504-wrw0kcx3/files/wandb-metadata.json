@@ -1,0 +1,145 @@
+{
+    "os": "Linux-5.15.0-60-generic-x86_64-with-glibc2.35",
+    "python": "3.9.13",
+    "heartbeatAt": "2023-04-24T17:35:05.379237",
+    "startedAt": "2023-04-24T17:35:04.905913",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/namrata/Dropbox (GaTech)/-active_learning_4_ts_instances-/main_run.py",
+    "codePath": "main_run.py",
+    "git": {
+        "remote": "https://github.com/nahad3/-active_learning_4_ts_instances-.git",
+        "commit": "fcd1c6f4181af57d0f009892e30cbec9a5326bde"
+    },
+    "email": "nnadagouda3@github.gatech.edu",
+    "root": "/home/namrata/Dropbox (GaTech)/-active_learning_4_ts_instances-",
+    "host": "namrata-Precision-3660",
+    "username": "namrata",
+    "executable": "/home/namrata/anaconda3/bin/python",
+    "cpu_count": 12,
+    "cpu_count_logical": 20,
+    "cpu_freq": {
+        "current": 2.145050000000001,
+        "min": 800.0,
+        "max": 4580.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.746,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4900.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4900.0
+        },
+        {
+            "current": 0.898,
+            "min": 800.0,
+            "max": 4900.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4900.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 0.894,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 4800.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 3600.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 3600.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 3600.0
+        },
+        {
+            "current": 2.1,
+            "min": 800.0,
+            "max": 3600.0
+        }
+    ],
+    "disk": {
+        "total": 937.3305015563965,
+        "used": 114.14484786987305
+    },
+    "gpu": "NVIDIA RTX A4500",
+    "gpu_count": 1,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA RTX A4500",
+            "memory_total": 21464350720
+        }
+    ],
+    "memory": {
+        "total": 31.047481536865234
+    }
+}

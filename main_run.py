@@ -28,7 +28,7 @@ parser.add_argument('--model_pth',type=str,default='saved_models_ssl/ssl_save_ro
 parser.add_argument('--test', type=int,default=0, help='test or not')
 parser.add_argument('--total_budget',type=int,default = 100,help="total number of training points (total pool at the end of all training)")
 parser.add_argument('--no_queries', type=int,default=20, help='No of queries to add to pool after each training round')
-parser.add_argument('--query_type',type=int,default=2,help='{0: for random queriy 1: for max entropy 2: for entropy frequency} ')
+parser.add_argument('--query_type',type=int,default=4,help='{0: for random queriy 1: for max entropy 2: for entropy frequency} ')
 parser.add_argument('--train', type=int,default=1, help='train or not')
 parser.add_argument('--batch_size', type=int,default=12, help='train or not')
 parser.add_argument('--visualize', type=int,default=0, help='train or not')
@@ -61,7 +61,7 @@ proj_dims =66
 
 
 
-assert args.query_type == 0 or args.query_type == 1 or args.query_type == 2,  \
+assert args.query_type == 0 or args.query_type == 1 or args.query_type == 2 or args.query_type == 3 or args.query_type == 4,  \
     f"Query type should be either 0 for random or 1 for max entropy or 2 for custom method. Got: {args.query_type}"
 
 
@@ -76,7 +76,7 @@ if not os.path.exists(args.save_path_results):
     os.makedirs(args.save_path_results)
 
 
-dict_type ={0: 'random',1: 'max entropy',2: "Experimental method"}
+dict_type ={0: 'random',1: 'max entropy',2: "Experimental method",3: "InfoNN",4: "Coreset"}
 full_path_save_results = os.path.join(args.save_path_results,f'result_{dict_type[args.query_type]}')
 
 args.file_path_save_src_feats = os.path.join(args.file_path_model_base, 'robo_src_feats_saved')

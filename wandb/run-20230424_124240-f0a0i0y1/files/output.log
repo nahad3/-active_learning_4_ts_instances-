@@ -1,0 +1,4 @@
+total_train_points : 100
+Query selection method: Coreset
+Run number: 0
+F1 score at the end of round 0 : 0.5188745522553282

@@ -1,0 +1,10 @@
+total_train_points : 100
+Query selection method: InfoNN
+Training with no points in pool 20
+F1 score 0.0543559123083631 at epoch 0
+Accuracy 0.07844444444444444 at epoch 0
+F1 score 0.5287877802917813 at epoch 100
+Accuracy 0.5994444444444444 at epoch 100
+F1 score 0.5964871541993902 at epoch 200
+Accuracy 0.7265 at epoch 200
+F1 score 0.5935228845872034 at epoch 300

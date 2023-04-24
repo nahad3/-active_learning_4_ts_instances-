@@ -15,6 +15,10 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import collections
 from numpy import linalg as LA
+from kmeans_pytorch import kmeans_fit
+from collections import Counter
+import math
+
 
 def find_nearest(array, value):
     'takes argmin l1 norm for array - value (closest l1 norm index to kmeans centeroid)'
@@ -316,16 +320,23 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
             model_feats.eval()
             model_clfr.eval()
             pool_sample_add = np.zeros((no_batches,int(queries_per_round/no_batches)))
+            n_samples = int(queries_per_round/no_batches)
             btch = 0
             for data in train_dataloader:
                 optim.zero_grad()
+                
+                # x_src: n * 1500 * 12
                 x_src = data['x_src'][:,:,:].to(device)
 
-
+                # x_srz_feats: n * 1500 * |params|
                 x_src_feats = model_feats(x_src, params)
+                x_src_feats_reshaped = x_src_feats.reshape(-1, x_src_feats.shape[-1])
+
                 # x_src_feats_reshaped = x_src_feats.reshape(-1,x_src_feats.shape[-1])
                 # x_src_feats_sampled = x_src_feats_reshaped[0:rand_samples]
                 src_lbl_clfr = model_clfr(x_src_feats)
+                
+                # src_lbl_clfr_reshaped: (n*1500) * |params|
                 src_lbl_clfr_reshaped = src_lbl_clfr.reshape(-1, src_lbl_clfr.shape[-1])
                 if args.query_type == 1:
                     probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
@@ -353,6 +364,87 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     # pool_sample_add =  [val[0] for val in sorted_freq[0:3]]
                     nearest_indices = [find_nearest(x_src_feats_reshaped, top_10_kmeans[value, :]) for value in range(0, int(queries_per_round/no_batches))]
                     top_k_ent_indices = np.asarray(nearest_indices )
+                elif args.query_type == 3:
+                    # infonn method
+                    
+                    # distribution parameters
+                    num_samples = 100
+                    clustering_choice = 0
+
+                    # compute the embeddings
+                    all_indices = np.arange(len(x_src_feats_reshaped))
+                    ind_l = pool[btch,:].astype(int)
+                    ind_u = list(set(all_indices) - set(ind_l))
+                    
+                    embeddings_u = x_src_feats_reshaped[ind_u, :]
+                    embeddings_l = x_src_feats_reshaped[ind_l, :]
+                    y_src = data['y_src'].reshape(-1,).to(device)
+                    labels = y_src[ind_l]
+
+                    # compute the possible queries
+                    pseudo_labels, candidate_queries, dist_std, mu = form_queries(embeddings_u, embeddings_l, labels)
+                #     mu = mu*(0.99**iter_num)
+                #     print('mu: {}'.format(mu))
+
+                    # select the optimal query
+                    infogain_u = []
+
+                    for i in range(candidate_queries.shape[0]):
+                        temp = mutual_information(device, candidate_queries[i], num_samples, dist_std, mu)
+                        infogain_u.append(temp)
+
+                    infogain_u = torch.stack(infogain_u)
+                #     next_samples = torch.topk(infogain_u, n_samples, largest=True)[1]
+
+                    num_clusters = 5
+
+                    if clustering_choice:
+                        # use knn
+                        cluster_ids = pseudo_labels  
+                        samples_u = torch.cat((cluster_ids.float().reshape(-1,1), infogain_u.reshape(-1,1)), dim=1)
+
+                    else:
+                #         use kmeans
+                        cluster_ids, cluster_centers = kmeans_fit(X=embeddings_u, num_clusters=num_clusters, distance='euclidean', device=device)
+                        samples_u = torch.cat((cluster_ids.float().reshape(-1,1), infogain_u.reshape(-1,1)), dim=1)
+
+                    next_samples = []
+                    num_unlabeled = cluster_ids.shape[0]
+                    for k in range(num_clusters):
+                        mask = samples_u[:,0] == k
+                        true_ind = torch.nonzero(mask, as_tuple=True)
+                        cluster_size = true_ind[0].size()[0]
+                        num_per_cluster = math.ceil((cluster_size * n_samples) / num_unlabeled)
+                        _, pseudo_ind = torch.topk(samples_u[true_ind][:,1], num_per_cluster, largest=True)
+                        topk_true_ind = true_ind[0][pseudo_ind]
+                        next_samples.append(topk_true_ind)
+                    next_samples = torch.cat(next_samples)
+                    next_samples = next_samples.cpu().detach().numpy()
+                    top_k_ent_indices = np.ndarray.flatten(np.squeeze(next_samples))
+
+                elif args.query_type == 4:
+                    # coreset
+                    # compute the embeddings
+                    all_indices = np.arange(len(x_src_feats_reshaped))
+                    ind_l = pool[btch, :].astype(int)
+                    ind_u = list(set(all_indices) - set(ind_l))
+
+                    embeddings_u = x_src_feats_reshaped[ind_u, :]
+                    embeddings_l = x_src_feats_reshaped[ind_l, :]
+
+                    next_samples = []
+                    for _ in range(n_samples):
+                        distances = torch.cdist(embeddings_l, embeddings_u)
+                        min_dist = torch.min(distances, dim = 0, keepdim = True)[0]
+                        ind = torch.argmax(min_dist)
+                        next_samples.append(ind)
+                        embeddings_l = torch.cat((embeddings_l,embeddings_u[ind].reshape(1,-1)))
+                        embeddings_u = torch.cat((embeddings_u[:ind],embeddings_u[ind+1:]))
+
+                    next_samples = torch.stack(next_samples)
+                    next_samples = next_samples.cpu().detach().numpy()
+                    top_k_ent_indices = np.ndarray.flatten(np.squeeze(next_samples))
+                   
                 # get new queries for batch
                 pool_sample_add[btch, :] = top_k_ent_indices[0:int(queries_per_round/no_batches)]
                 btch = btch + 1
@@ -382,6 +474,147 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
 
 
+# helper functions for info-nn
+
+def get_embedding(model, device, labeled_loader, unlabeled_loader):
+    
+    """
+    Find the nearest labeled samples from every class to each unlabeled sample
+    
+    Arguments:
+        model:
+        device:
+        labeled_loader: 
+        unlabeled_loader: 
+    
+    Returns:
+        embeddings_u: embeddings corresponding to the unlabeled data
+        embeddings_l: embeddings corresponding to the labeled data
+        sorted_labels: labels corresponding to the labeled samples sorted according to their labels
+    """
+    
+    embeddings_l = []
+    labels = []
+    embeddings_u = []
+    
+   
+    model.eval()
+    with torch.no_grad():
+        for data, target in labeled_loader:
+            feat_l, _ = model(data.to(device, dtype=torch.float),1)
+            feat_l = feat_l.squeeze(1)
+            embeddings_l.append(feat_l)
+            labels.append(target.to(device))
+        for data, _ in unlabeled_loader:
+            feat_u, _ = model(data.to(device, dtype=torch.float),1)
+            feat_u = feat_u.squeeze(1)
+            embeddings_u.append(feat_u)
+
+    embeddings_l = torch.cat(embeddings_l)
+    embeddings_u = torch.cat(embeddings_u)
+    labels = torch.cat(labels).float()
+    labels=labels.reshape(-1,1)
+    
+    return embeddings_u, embeddings_l, labels
+
+
+
+def form_queries(embeddings_u, embeddings_l, labels, n_classes=5, num_neighbors=5, topk = 5, norm = 2):
+        
+    """
+    Find the nearest labeled samples from every class to each unlabeled sample
+    
+    Arguments:
+        embeddings_u: embeddings corresponding to the unlabeled samples, of shape (n_u, d)
+        embeddings_l: embeddings corresponding to the unlabeled samples, of shape (n_l, d)
+        norm: The norm to be used to compute distances.
+    
+    Returns:
+        candidate_queries: matrix of shape (n_u, num_classes) containing distances between unlabeled samples 
+                           and the nearest neighbors
+    """
+    
+    distances = torch.cdist(embeddings_l, embeddings_u)
+    dist_std = torch.std(distances)
+    print('Dist std: {}'.format(dist_std))
+#     mu = torch.mean(distances)
+    mu = torch.max(distances)
+#     mu = 1e-5
+    print('mu: {}'.format(mu))
+    labels = labels[:,None]
+    distances = torch.cat((labels, distances),1)
+    _, ind = torch.topk(distances[:,1:], topk, dim = 0, largest=False)
+    neighbours = distances[:,0][ind]
+    pseudo_labels = Counter(neighbours).most_common(1)[0][0]
+
+    candidate_queries = []
+
+    for k in range(n_classes):
+        mask = distances[:,0] == k
+        nearest_neighbors = torch.min(distances[torch.nonzero(mask, as_tuple=True)][:,1:], dim = 0, keepdim = True)
+        candidate_queries.append(nearest_neighbors[0])
+
+    candidate_queries = torch.cat(candidate_queries).t()
+    
+    queries, _ = torch.topk(candidate_queries, num_neighbors, dim = 1, largest=False)
+    print(queries.size())
+    
+    return pseudo_labels, queries, dist_std, mu
+
+
+def class_probabilities(distances, mu):
+    """
+    Compute the class probabilities
+    
+    Inputs:
+        distances: The precomputed set of pairwise distances between a and each body object,
+        mu: Optional regularization parameter, set to 0.5 to ignore
+    returns:
+        prob: The probability corresponding to each class
+    """
+    
+    prob = 1 / (distances**2 + mu)
+    prob = prob / torch.sum(prob, dim=1, keepdim=True)
+        
+    return prob
+
+
+def mutual_information(device, query, num_samples, dist_std, mu):
+    """
+    This method corresponds to the mutual information calculation specified in Section 3.1
+    Specifically, the method returns the result of inputting the method parameters into formula (9).
+    
+    Arguments:
+        X: An Nxd embedding of objects
+        head: The head of the tuple comparison under consideration
+        body: The body of the tuple comparison under consideration
+        num_samples: Number of samples to estimate D_s as described in (A3)
+        dist_std: Variance parameter as specified in (A3)
+        mu: Optional regularization parameter for the probabilistic response model
+    returns:
+        information: Mutual information as specified in (9) in Section 3.1
+    """
+    
+    distances = []
+        
+    for i in range(query.shape[0]):
+
+        # mean = query[i].item()
+        # size = (num_samples,1)
+        
+        distances.append(torch.abs(torch.normal(query[i].item(), dist_std.item(), (num_samples,1))))
+        
+    distances = torch.squeeze(torch.stack(distances, dim=2), dim=1)
+    distances = distances.to(device)
+    
+    probability_samples = class_probabilities(distances, mu)
+    entropy_samples = -torch.sum(probability_samples * torch.log2(probability_samples), dim=1)
+    expected_probabilities = torch.sum(probability_samples, dim=0, keepdim=True) / num_samples
+    entropy  = -torch.sum(expected_probabilities * torch.log2(expected_probabilities))
+    expected_entropy = torch.sum(entropy_samples) / num_samples
+    information = entropy - expected_entropy
+    
+    return information
 
 
 
