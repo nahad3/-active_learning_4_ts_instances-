@@ -340,7 +340,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
                     entropy = torch.distributions.Categorical(probs=probs).entropy()
                     entropy = entropy.detach().cpu().numpy()
-                    entrop_filt = np.where(entropy > 0.4)[0]
+                    entrop_filt = np.where(entropy > 0.5)[0]
                     x_src_feats_reshaped = x_src_feats.detach().cpu().numpy().reshape(-1, x_src_feats.shape[-1])
                     x_src_feats_filtr = x_src_feats_reshaped[entrop_filt, :]
                     kmeans = KMeans(n_clusters=40, random_state=0).fit(x_src_feats_filtr)

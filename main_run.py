@@ -28,7 +28,7 @@ parser.add_argument('--model_pth',type=str,default='saved_models_ssl/ssl_save_ro
 parser.add_argument('--test', type=int,default=0, help='test or not')
 parser.add_argument('--total_budget',type=int,default = 100,help="total number of training points (total pool at the end of all training)")
 parser.add_argument('--no_queries', type=int,default=20, help='No of queries to add to pool after each training round')
-parser.add_argument('--query_type',type=int,default=2,help='{0: for random queriy 1: for max entropy 2: for entropy frequency} ')
+parser.add_argument('--query_type',type=int,default=1,help='{0: for random queriy 1: for max entropy 2: for entropy frequency} ')
 parser.add_argument('--train', type=int,default=1, help='train or not')
 parser.add_argument('--batch_size', type=int,default=12, help='train or not')
 parser.add_argument('--visualize', type=int,default=0, help='train or not')
