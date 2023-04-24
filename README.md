@@ -8,4 +8,4 @@ plotly
 umap
 
 
-run main_run.py
+run main_run.py with different arguments for different AL methods
