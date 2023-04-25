@@ -181,7 +181,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     numb_rounds = int(total_budget/(queries_per_round))
 
     wandb.define_metric("queries step")
-    wandb.define_metric("Active/*", step_metric="queries step")
+    wandb.define_metric("Val*", step_metric="queries step")
 
     for k in range(0,numb_rounds):
         loss_array_train = []
@@ -307,9 +307,14 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
             y_predicted = torch.argmax(src_lbl_clfr_reshaped, axis=1)
             f1_score = sklearn.metrics.f1_score(y_true, y_predicted.cpu().numpy(), average='macro')
             acc = sklearn.metrics.accuracy_score(y_true, y_predicted.cpu().numpy())
-            print(f"F1 score at the end of round {k} : {f1_score}")
+            print(f"F1 score at the end of round {k}: {f1_score}")
             print(f"Acc score at the end of round {k} : {acc}")
+            if numb_rounds > 1:
+                active_log_dict_f1 = {f"Val F1 score/{args.dict_type[args.query_type]}/  for run number {args.run_no} ": f1_score,
+                                      f"Val ACC score/{args.dict_type[args.query_type]}/  for run number {args.run_no} ": acc,
+                                      "queries step": np.shape(pool.reshape(-1, ))[0]}
 
+                wanb_con.log(active_log_dict_f1)
         #accumulates result in a list
         f1_score_list.append(f1_score)
         acc_score_list.append(acc)
@@ -351,10 +356,10 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
                     entropy = torch.distributions.Categorical(probs=probs).entropy()
                     entropy = entropy.detach().cpu().numpy()
-                    entrop_filt = np.where(entropy > 0.4)[0]
+                    entrop_filt = np.where(entropy > 0.35)[0]
                     x_src_feats_reshaped = x_src_feats.detach().cpu().numpy().reshape(-1, x_src_feats.shape[-1])
                     x_src_feats_filtr = x_src_feats_reshaped[entrop_filt, :]
-                    kmeans = KMeans(n_clusters=40, random_state=0).fit(x_src_feats_filtr)
+                    kmeans = KMeans(n_clusters=20, random_state=0).fit(x_src_feats_filtr)
                     pred_clusters = kmeans.predict(x_src_feats_filtr)
                     frequency = collections.Counter(pred_clusters)
                     # get the maximum or top freuqncy points and sample
@@ -450,22 +455,27 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                 btch = btch + 1
 
             'Add acquired samples to pool'
+
+
+
+            visualize = 1
+            # plot representations and entropy after training round (only for the first run if multiple runs)
+            if visualize == 1 and args.run_no == 0 and (pool.reshape(-1,).shape[0])%40 == 0:
+                i = 0
+                list_train_loader = list(train_dataloader)
+                x = list_train_loader[0]['x_src'][i]
+                x2 = list_train_loader[0]['x_src'][i+1]
+                y = list_train_loader[0]['y_src'][i]
+                y2 = list_train_loader[0]['y_src'][i]
+                x = torch.cat((x,x2),axis=0)
+                y = torch.cat((y,y2),axis=0)
+                fig = plot_ts_reps(model_feats=model_feats, model_clfr=model_clfr, x=x.numpy(), y=y.numpy(), device=device,
+                                   window=-1, title='str(i)')
+                wanb_con.log({f"RepresetSubplots/Val/{args.dict_type[args.query_type]}/ after pool of size  {pool.reshape(-1,).shape[0]}": fig})
+                print("here")
+
+            # Add queries to batch and then train again
             pool = np.concatenate((pool, pool_sample_add), axis=1)
-
-
-        visualize = 0
-        # plot representations and entropy after training round
-        if visualize == 1:
-            i = 0
-            list_train_loader = list(train_dataloader)
-            x = list_train_loader[0]['x_src'][i]
-            y = list_train_loader[0]['y_src'][i]
-            fig = plot_ts_reps(model_feats=model_feats, model_clfr=model_clfr, x=x.numpy(), y=y.numpy(), device=device,
-                               window=-1, title='str(i)')
-            wanb_con.log({f"plot {i} after {k} ": fig})
-            print("here")
-        # Add queries to batch and then train again
-
 
         #set the next round to train if it was set no to train when given initial pool
         train_round = 1

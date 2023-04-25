@@ -1,4 +1,5 @@
 '''Code for plottig active learning results'''
+import os
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,17 +9,21 @@ import matplotlib.pyplot as plt
 plt.rcParams.update({'font.size': 30})
 
 n_samples = 20
-n_total = 100
+n_total = 280
 num_trials = 5
 x = np.arange(n_samples, n_total+1, n_samples)
 # x = range(0, n_total, n_samples)
 
-file_list = ['./results/result_InfoNN.npz','./results/result_Experimental method.npz','./results/result_Coreset.npz','./results/result_max entropy.npz','./results/result_random.npz']
+data_type  = 'pos_robot_B'
+base_path = f'./results/{data_type}'
+
+file_list = ['result_InfoNN.npz','result_Experimental method.npz','result_Coreset.npz','result_max entropy.npz','result_random.npz']
 color_list = ['b','g','r','y','m'] # ','tab:red','tab:green']
 fig, ax = plt.subplots()
 
 for k in range(0,len(file_list)):
-    accuracy_array = np.load(file_list[k])
+    path_load = os.path.join(base_path,file_list[k])
+    accuracy_array = np.load(path_load)
     accuracy_array = accuracy_array['acc_list']
     accuracy_q1 = np.quantile(accuracy_array, 0.25, axis=0)
     accuracy_q3 = np.quantile(accuracy_array, 0.75, axis=0)
@@ -37,4 +42,4 @@ plt.xlabel('Number of labels')
 plt.ylabel('Classification Accuracy')
 
 fig.set_size_inches(12, 9)
-plt.savefig('./results/plots/experinment4.png', dpi=100, bbox_inches='tight')
+plt.savefig(f'./results/plots/{data_type}.png', dpi=100, bbox_inches='tight')
