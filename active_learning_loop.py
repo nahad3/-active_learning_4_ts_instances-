@@ -466,7 +466,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                 x = list_train_loader[0]['x_src'][i]
                 x2 = list_train_loader[0]['x_src'][i+1]
                 y = list_train_loader[0]['y_src'][i]
-                y2 = list_train_loader[0]['y_src'][i]
+                y2 = list_train_loader[0]['y_src'][i+1]
                 x = torch.cat((x,x2),axis=0)
                 y = torch.cat((y,y2),axis=0)
                 fig = plot_ts_reps(model_feats=model_feats, model_clfr=model_clfr, x=x.numpy(), y=y.numpy(), device=device,
