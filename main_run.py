@@ -93,7 +93,7 @@ wandb.init(config=args_dict, project=project,name=name)
 
 
 'select list of query type methods to run. Look at query type args helper to look at number to method mapping'
-list_q = [6]
+list_q = [2]
 for q in list_q:
     'iterating through all active learning methods'
     args.query_type = q
@@ -110,7 +110,7 @@ for q in list_q:
     batch_size = args.batch_size
     proj_dims =config_dict[dataset]['proj_dims']
 
-    
+
 
 
 
