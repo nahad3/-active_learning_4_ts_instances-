@@ -4,8 +4,13 @@ import numpy as np
 import torch
 from collections import OrderedDict
 from torch import nn
+from numpy import linalg as LA
 
-
+def find_nearest(array, value):
+    'takes argmin l1 norm for array - value (closest l1 norm index to kmeans centeroid)'
+    array = np.asarray(array)
+    idx = (LA.norm((array - value),axis=1)).argmin()
+    return idx
 
 
 def get_invariant_feats(model_feats,model_da, device, test_loader,use_ssl=1,only_ssl=1,no_da=0):
@@ -159,7 +164,7 @@ def visualize_reps_with_labels(reps,y_unlab, y_src,y_prop=None):
         j_idx = np.where((y_unlab == j))[0]
         axs1[0].scatter(transformed[j_idx, 0], transformed[j_idx, 1], c=clr_list[j+1], label=label_list[j+1], alpha=0.2)
     plt.savefig(f'figures/DA/rob_lab_propagated_vel_b_01')
-def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
+def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',clusters=None,window=50):
     #fig1, axs1 = plt.subplots(4, 1, figsize=(15, 5))
     params = OrderedDict(model_feats.named_parameters())
     model_feats.to(device)
@@ -173,6 +178,10 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
         src_lbl_clfr_reshaped = src_lbl_clfr.reshape(-1, src_lbl_clfr.shape[-1])
         probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1).detach()
         entropy = torch.distributions.Categorical(probs=probs).entropy().cpu().numpy()
+        if clusters is not None:
+            nearest_indices = [find_nearest(reps.reshape(-1,reps.shape[-1]), clusters[value, :]) for value in
+                               range(0, clusters.shape[0])]
+
         preds = torch.argmax(probs,dim=1).cpu().numpy()
         #reps = x.cpu().numpy().squeeze(0)
     else:
@@ -188,6 +197,8 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
     ax[1].plot(reps)
     ax[1].title.set_text("Learned Reps")
     ax[2].plot(entropy)
+    if clusters is not None:
+        ax[2].vlines(nearest_indices,-0.2,1.5,colors='r')
     ax[2].title.set_text("Entropy (soft max)")
     ax[3].plot(preds)
     ax[3].title.set_text("Predicted class")
@@ -195,9 +206,11 @@ def plot_ts_reps(model_feats,model_clfr, device, x,y,title='figure',window=50):
     ax[4].plot(y)
     ax[4].title.set_text("True class")
     #plt.show()
+
     plt.tight_layout()
     fig_path = f'figures/DA/rob_lab_1{title}_{str(window)}.pdf'
     #fig.suptitle(title)
     #plt.show()
+
     return fig
     #fig.savefig(fig_path)

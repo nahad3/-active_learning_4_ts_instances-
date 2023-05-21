@@ -271,8 +271,8 @@ class LeggedRobotsDataset_semisup_DA(Dataset):
 
     def __getitem__(self, item):
         data = {}
-        data['x_src'] = self.x_src[item,:,:]
-        data['y_src'] = self.y_src[item,:,:]
+        data['x'] = self.x_src[item,:,:]
+        data['y'] = self.y_src[item,:,:]
         data['x_trgt'] = self.x_trgt[item,:,:]
         data['y_trgt'] = self.y_trgt[item,:,:]
 

@@ -4,12 +4,18 @@ import numpy as np
 import wandb
 from collections import OrderedDict
 from utils_vis import plot_ts_reps
+
+from tslearn.clustering import TimeSeriesKMeans
+import math
+from sklearn.neighbors import KernelDensity
+from sklearn.cluster import MeanShift
 from torch.autograd import grad
 from sklearn.metrics import confusion_matrix
 from torch import nn
 from loss_ssl_tcn import hierarchical_contrastive_loss,centroid_contrast_loss
 #from utils.utils import get_two_views
 from sklearn.metrics import f1_score
+from sklearn.cluster import SpectralClustering
 import matplotlib.pyplot as plt
 'code for psuedolabels and teacher student loop DA'
 from sklearn.cluster import KMeans
@@ -18,10 +24,15 @@ from numpy import linalg as LA
 from kmeans_pytorch import kmeans_fit
 from collections import Counter
 import math
+from utils.slid_wind_entropy import get_windows_4_ent,get_entp_score,get_jumped_indices
 
+
+np.random.seed(2023)
+torch.manual_seed(2023)
 
 def find_nearest(array, value):
     'takes argmin l1 norm for array - value (closest l1 norm index to kmeans centeroid)'
+    'Ensures values from existing pool are eliminated'
     array = np.asarray(array)
     idx = (LA.norm((array - value),axis=1)).argmin()
     return idx
@@ -82,18 +93,27 @@ def train_soruce(model_feats,model_clfr,train_dataloader,args,device,wanb_con,va
         scheduler.step()
 
 
+def get_diverse_samples(X,no_samples):
+    'takes in a dataset and retursn the most diverse samples from it'
+    kmeans = KMeans(n_clusters=no_samples, random_state=0).fit(X)
 
-def get_balanced_samples(dataloader,no_classes,no_points):
+
+    nearest_indices = [find_nearest(X, kmeans.cluster_centers_[value,:]) for value in
+                       range(0, no_samples)]
+    return nearest_indices
+
+def get_balanced_samples(dataloader,no_classes,no_points,select_most_diverse=False):
 
     'goes through all batches and gets balanced number of samples for each class across each batch. Returns list (no batches x (no_points/no_batches)'
-
+    'select more diverse flag. Does clustering on data for each class to select most diverse samples. Set to False by default'
     btch2list = list(dataloader)
     no_batches = len(btch2list)
     no_points_p_class = int(no_points /(no_batches * no_classes))
     out_list = np.zeros((no_batches,int(no_points/no_batches)))
-    for k in range(0,no_batches):
-        y = btch2list[k]['y_src'].reshape(-1,)
 
+    for k in range(0,no_batches):
+        y = btch2list[k]['y'].reshape(-1,)
+        x = btch2list[k]['x'].reshape(-1, btch2list[k]['x'].shape[-1])
         for i in range(0,no_classes):
             '''
             if k == 0 and i == 0:
@@ -111,8 +131,14 @@ def get_balanced_samples(dataloader,no_classes,no_points):
             '''
             y_idx = np.where(y == i)[0]
             np.random.shuffle(y_idx)
-            #y_idx = np.random.shuffle(np.where(y == i)[0])[0:no_points_p_class]
-            out_list[k,i*(no_points_p_class):(i+1)*(no_points_p_class)] = y_idx[0:no_points_p_class]
+
+            if select_most_diverse:
+                idx = get_diverse_samples(x[y_idx,:],no_points_p_class)
+                out_list[k, i * (no_points_p_class):(i + 1) * (no_points_p_class)] = idx
+            else:
+                #y_idx = np.random.shuffle(np.where(y == i)[0])[0:no_points_p_class]
+                out_list[k,i*(no_points_p_class):(i+1)*(no_points_p_class)] = y_idx[0:no_points_p_class]
+
 
     return out_list
 def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_con,val_dataload,total_budget=None,
@@ -135,7 +161,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     'queries_per_round: Samples to be acquired after each round if given., otherwise taken from args' \
     'init_pool: Initial pool to train the modle if given, otherwise generated in a balenced sampled way'
     'val_each_epoch:Validate each epoch result or not. Can be turned off to speed up Experiments for multiple active lrn rounds'
-    if total_budget is None: 
+    if total_budget is None:
         total_budget = args.total_budget
     if queries_per_round is None:
         queries_per_round = args.no_queries
@@ -163,7 +189,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     'need to add ssl loss'
     no_batches  = len(train_dataloader)
 
-    no_labels_p_batch = len(list(train_dataloader)[0]['y_src'].reshape(-1,))
+    no_labels_p_batch = len(list(train_dataloader)[0]['y'].reshape(-1,))
 
     #start with random number of initial samples (equivalent ot the number of queries)
 
@@ -173,9 +199,14 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
     #get balanced samples for pool if no initial pool provided
     if init_pool is None:
         pool= get_balanced_samples(train_dataloader, 5, no_points=queries_per_round)
+
         train_round = 1
+    elif init_pool =='random':
+        rand_intial_samples = np.random.choice(np.arange(0, no_labels_p_batch), size=queries_per_round)
+        pool = rand_intial_samples.reshape(no_batches, -1)
+        train_round = 1
+
     else:
-        #use provided pool
         pool = np.copy(init_pool)
         train_round = 0
     numb_rounds = int(total_budget/(queries_per_round))
@@ -193,15 +224,16 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
         checkpoint = torch.load(args.file_path_save_src_clfr)
         model_clfr.load_state_dict(checkpoint['model_state_dict'])
         params = OrderedDict(model_feats.named_parameters())
+        optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src,
+                                 weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=500, gamma=0.1)
         if train_round  == 1:
             "skip first round of train if initial pool provided"
 
-            #optim = torch.optim.Adam(list(model_feats.parameters()) + list(model_clfr.parameters()), args.lr_src,
-            #                         weight_decay=1e-4)
 
 
-
+            loss_array_train = []
+            loss_array_val = []
             print(f"Training with no points in pool {pool.reshape(-1, 1).shape[0]}")
             for ep in range(0, args.no_epochs):
                 model_feats.train()
@@ -210,8 +242,8 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
                 for data in train_dataloader:
                     optim.zero_grad()
-                    x_src = data['x_src'][:,:,:].to(device)
-                    y_src = data['y_src'].reshape(-1,)#.to(device)
+                    x_src = data['x'][:,:,:].to(device)
+                    y_src = data['y'].reshape(-1,)#.to(device)
                     x_src_feats = model_feats(x_src, params)
 
                     src_lbl_clfr = model_clfr(x_src_feats)
@@ -237,8 +269,8 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     #Evaluation done for each Epoch
                     for data in val_dataload:
                         'val dataload batch size normally large enough so that only 1 batch used'
-                        x_src = data['x_src'][:,:,:].to(device)
-                        y_all = data['y_src'].to(device)
+                        x_src = data['x'][:,:,:].to(device)
+                        y_all = data['y'].to(device)
                         no_labels_p_batch = len(y_all)
                         rand_samples = np.random.choice(np.arange(0, no_labels_p_batch), size=int(queries_per_round/1))
                         no_labels_p_batch = len(y_all.reshape(-1,))
@@ -295,8 +327,8 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
         "Evaluation after training is done"
         for data in val_dataload:
             'val dataload batch size normally large enough so that only 1 batch used'
-            x_src = data['x_src'][:, :, :].to(device)
-            y_all = data['y_src'].to(device)
+            x_src = data['x'][:, :, :].to(device)
+            y_all = data['y'].to(device)
             no_labels_p_batch = len(y_all)
             rand_samples = np.random.choice(np.arange(0, no_labels_p_batch), size=int(queries_per_round / 1))
 
@@ -329,10 +361,10 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
             btch = 0
             for data in train_dataloader:
                 optim.zero_grad()
-                
-                # x_src: n * 1500 * 12
-                x_src = data['x_src'][:,:,:].to(device)
 
+                # x_src: n * 1500 * 12
+                x_src = data['x'][:,:,:].to(device)
+                y_src = data['y']
                 # x_srz_feats: n * 1500 * |params|
                 x_src_feats = model_feats(x_src, params)
                 x_src_feats_reshaped = x_src_feats.reshape(-1, x_src_feats.shape[-1])
@@ -340,7 +372,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                 # x_src_feats_reshaped = x_src_feats.reshape(-1,x_src_feats.shape[-1])
                 # x_src_feats_sampled = x_src_feats_reshaped[0:rand_samples]
                 src_lbl_clfr = model_clfr(x_src_feats)
-                
+
                 # src_lbl_clfr_reshaped: (n*1500) * |params|
                 src_lbl_clfr_reshaped = src_lbl_clfr.reshape(-1, src_lbl_clfr.shape[-1])
                 if args.query_type == 1:
@@ -356,22 +388,138 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
                     entropy = torch.distributions.Categorical(probs=probs).entropy()
                     entropy = entropy.detach().cpu().numpy()
-                    entrop_filt = np.where(entropy > 0.35)[0]
+                    if args.args.entropy_prcntile is not None:
+                        args.entropy_thresh = np.percentile(entropy,args.entropy_prcntile)
+                    entrop_filt = np.where(entropy > args.entropy_thresh)[0]
+
+
                     x_src_feats_reshaped = x_src_feats.detach().cpu().numpy().reshape(-1, x_src_feats.shape[-1])
                     x_src_feats_filtr = x_src_feats_reshaped[entrop_filt, :]
-                    kmeans = KMeans(n_clusters=20, random_state=0).fit(x_src_feats_filtr)
+
+
+                    kmeans = KMeans(n_clusters=args.no_clusters, random_state=0).fit(x_src_feats_filtr)
+
+
+                    #kmeans = TimeSeriesKMeans(n_clusters=10,
+                    #                          n_init=2,
+                    #                          metric="dtw",
+                    #                          verbose=True,
+                    #                          max_iter_barycenter=10).fit( x_src_feats_filtr)
+                    pred_clusters = kmeans.predict(x_src_feats_filtr)
+                    frequency = collections.Counter(pred_clusters)
+
+
+                    "Get the maximum or top freuqncy points and sample"
+                    sorted_freq = sorted(frequency.items(), key=lambda x: x[1], reverse=True)
+                    top_10_centroids = [val[0] for val in sorted_freq[0:int(queries_per_round/no_batches)]]
+                    top_10_kmeans = kmeans.cluster_centers_[top_10_centroids, :]
+
+                    "Ensure nearest indices are not from existing pool values"
+                    x_src_feats_reshaped[pool[btch,:].astype(int),:] = 1e5
+                    nearest_indices = [find_nearest(x_src_feats_reshaped, top_10_kmeans[value, :]) for value in range(0, int(queries_per_round/no_batches))]
+                    top_k_ent_indices = np.asarray(nearest_indices )
+                elif args.query_type == 5:
+                    'This method is a mixture of clustering and random sampling'
+                    y_reshape = y_src.reshape(-1, )
+                    idx_0 = torch.where(y_reshape == 0)[0].cpu().numpy()
+                    random_idxs = idx_0
+
+
+
+
+                    'function to get segments or points where entropy is larger than a threshold'
+                    windows = get_windows_4_ent(x_src_feats_reshaped[0:6000, :], window=300, stride=1)
+                    entp_scores = get_entp_score(windows, bins=40)
+
+                    #seg_list,t_len = get_jumped_indices(y_reshape.clone().cpu(),idx_0)
+                    probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
+                    entropy = torch.distributions.Categorical(probs=probs).entropy()
+                    entropy = entropy.detach().cpu().numpy()
+                    entrop_filt = np.where(entropy > args.entropy_thresh)[0]
+                    #args.entropy_thresh = args.entropy_thresh - 0.10
+                    'Removing points where random filtering is to be performed'
+                    entrop_filt = np.setdiff1d(entrop_filt,random_idxs)
+
+                    #no_random = math.ceil((len(random_idxs)/len(entp_scores) ) * int(queries_per_round / no_batches))
+                    no_random = 4
+
+                    random_samples = np.random.choice(random_idxs,
+                                                size=no_random)
+                    x_src_feats_reshaped = x_src_feats.detach().cpu().numpy().reshape(-1, x_src_feats.shape[-1])
+                    x_src_feats_filtr = x_src_feats_reshaped[entrop_filt, :]
+
+                    kmeans = KMeans(n_clusters=args.no_clusters, random_state=0).fit(x_src_feats_filtr)
+                    #kmeans = MeanShift(bandwidth=0.5).fit(x_src_feats_filtr)
                     pred_clusters = kmeans.predict(x_src_feats_filtr)
                     frequency = collections.Counter(pred_clusters)
                     # get the maximum or top freuqncy points and sample
                     sorted_freq = sorted(frequency.items(), key=lambda x: x[1], reverse=True)
-                    top_10_centroids = [val[0] for val in sorted_freq[0:int(queries_per_round/no_batches)]]
+                    top_10_centroids = [val[0] for val in sorted_freq[0:int(queries_per_round / no_batches)]]
                     top_10_kmeans = kmeans.cluster_centers_[top_10_centroids, :]
                     # pool_sample_add =  [val[0] for val in sorted_freq[0:3]]
+
+                    #use the rest of the budget for the conventional method
+                    nearest_indices = [find_nearest(x_src_feats_reshaped, top_10_kmeans[value, :]) for value in
+                                       range(0, (int(queries_per_round / no_batches) - no_random))]
+                    top_k_ent_indices = np.asarray(nearest_indices)
+                    top_k_ent_indices = np.concatenate((top_k_ent_indices,random_samples),axis=0)
+                    #kde = KernelDensity(kernel='gaussian', bandwidth=args.bandwidth).fit(x_src_feats_filtr)
+                    #kde_score = kde.score_samples(x_src_feats_filtr)
+
+                    #np.argsort(kde_score)
+
+
+                    #pred_clusters = kmeans.predict(x_src_feats_filtr)
+                    #frequency = collections.Counter(pred_clusters)
+                    # get the maximum or top freuqncy points and sample
+                    #sorted_freq = sorted(frequency.items(), key=lambda x: x[1], reverse=True)
+                    #top_10_centroids = [val[0] for val in sorted_freq[0:int(queries_per_round/no_batches)]]
+                    #top_10_kmeans = kmeans.cluster_centers_[top_10_centroids, :]
+                    # pool_sample_add =  [val[0] for val in sorted_freq[0:3]]
+                    #nearest_indices = [find_nearest(x_src_feats_reshaped, top_10_kmeans[value, :]) for value in range(0, int(queries_per_round/no_batches))]
+                    #top_k_ent_indices = np.asarray(nearest_indices )
+
+                elif args.query_type == 6:
+                    'Experimetnal method that uses marginal confidence instead of entropy for uncertainty'
+                    probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
+                    top2_probs = torch.topk(probs, 2, dim=1)[0]
+
+                    marg_confd = 1-(top2_probs[:,0] - top2_probs[:,1])
+                    if args.args.marg_confd_prcntile is not None:
+                        args.marg_confd_thresh = np.percentile(marg_confd,args.marg_confd_prcntile)
+                    marg_confd_filt = np.where(marg_confd > args.marg_confd_thresh)[0]
+
+
+                    x_src_feats_reshaped = x_src_feats.detach().cpu().numpy().reshape(-1, x_src_feats.shape[-1])
+                    x_src_feats_filtr = x_src_feats_reshaped[marg_confd_filt, :]
+
+
+                    kmeans = KMeans(n_clusters=args.no_clusters, random_state=0).fit(x_src_feats_filtr)
+
+
+                    #kmeans = TimeSeriesKMeans(n_clusters=10,
+                    #                          n_init=2,
+                    #                          metric="dtw",
+                    #                          verbose=True,
+                    #                          max_iter_barycenter=10).fit( x_src_feats_filtr)
+                    pred_clusters = kmeans.predict(x_src_feats_filtr)
+                    frequency = collections.Counter(pred_clusters)
+
+
+                    "Get the maximum or top freuqncy points and sample"
+                    sorted_freq = sorted(frequency.items(), key=lambda x: x[1], reverse=True)
+                    top_10_centroids = [val[0] for val in sorted_freq[0:int(queries_per_round/no_batches)]]
+                    top_10_kmeans = kmeans.cluster_centers_[top_10_centroids, :]
+
+                    "Ensure nearest indices are not from existing pool values"
+                    x_src_feats_reshaped[pool[btch,:].astype(int),:] = 1e5
                     nearest_indices = [find_nearest(x_src_feats_reshaped, top_10_kmeans[value, :]) for value in range(0, int(queries_per_round/no_batches))]
                     top_k_ent_indices = np.asarray(nearest_indices )
+
+
                 elif args.query_type == 3:
                     # infonn method
-                    
+
                     # distribution parameters
                     num_samples = 100
                     clustering_choice = 0
@@ -380,10 +528,10 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     all_indices = np.arange(len(x_src_feats_reshaped))
                     ind_l = pool[btch,:].astype(int)
                     ind_u = list(set(all_indices) - set(ind_l))
-                    
+
                     embeddings_u = x_src_feats_reshaped[ind_u, :]
                     embeddings_l = x_src_feats_reshaped[ind_l, :]
-                    y_src = data['y_src'].reshape(-1,).to(device)
+                    y_src = data['y'].reshape(-1,).to(device)
                     labels = y_src[ind_l]
 
                     # compute the possible queries
@@ -405,7 +553,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
                     if clustering_choice:
                         # use knn
-                        cluster_ids = pseudo_labels  
+                        cluster_ids = pseudo_labels
                         samples_u = torch.cat((cluster_ids.float().reshape(-1,1), infogain_u.reshape(-1,1)), dim=1)
 
                     else:
@@ -449,7 +597,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     next_samples = torch.stack(next_samples)
                     next_samples = next_samples.cpu().detach().numpy()
                     top_k_ent_indices = np.ndarray.flatten(np.squeeze(next_samples))
-                   
+
                 # get new queries for batch
                 pool_sample_add[btch, :] = top_k_ent_indices[0:int(queries_per_round/no_batches)]
                 btch = btch + 1
@@ -458,18 +606,24 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
 
 
-            visualize = 1
+            visualize = 0
             # plot representations and entropy after training round (only for the first run if multiple runs)
-            if visualize == 1 and args.run_no == 0 and (pool.reshape(-1,).shape[0])%40 == 0:
+            if visualize == 1 and args.run_no == 0 and (pool.reshape(-1,).shape[0])%10 == 0:
                 i = 0
                 list_train_loader = list(train_dataloader)
-                x = list_train_loader[0]['x_src'][i]
-                x2 = list_train_loader[0]['x_src'][i+1]
-                y = list_train_loader[0]['y_src'][i]
-                y2 = list_train_loader[0]['y_src'][i+1]
-                x = torch.cat((x,x2),axis=0)
-                y = torch.cat((y,y2),axis=0)
-                fig = plot_ts_reps(model_feats=model_feats, model_clfr=model_clfr, x=x.numpy(), y=y.numpy(), device=device,
+                x = list_train_loader[0]['x'][i]
+                x2 = list_train_loader[0]['x'][i+1]
+                x3 = list_train_loader[0]['x'][i + 2]
+                x4 = list_train_loader[0]['x'][i + 3]
+                y = list_train_loader[0]['y'][i]
+                y2 = list_train_loader[0]['y'][i+1]
+                y3 = list_train_loader[0]['y'][i + 2]
+                y4 = list_train_loader[0]['y'][i + 3]
+                x = torch.cat((x,x2,x3,x4),axis=0)
+                y = torch.cat((y,y2,y3,y4),axis=0)
+                if args.query_type == 0:
+                    top_10_kmeans = None
+                fig = plot_ts_reps(model_feats=model_feats, model_clfr=model_clfr, x=x.numpy(), y=y.numpy(), device=device, clusters =top_10_kmeans,
                                    window=-1, title='str(i)')
                 wanb_con.log({f"RepresetSubplots/Val/{args.dict_type[args.query_type]}/ after pool of size  {pool.reshape(-1,).shape[0]}": fig})
                 print("here")
@@ -487,27 +641,27 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 # helper functions for info-nn
 
 def get_embedding(model, device, labeled_loader, unlabeled_loader):
-    
+
     """
     Find the nearest labeled samples from every class to each unlabeled sample
-    
+
     Arguments:
         model:
         device:
-        labeled_loader: 
-        unlabeled_loader: 
-    
+        labeled_loader:
+        unlabeled_loader:
+
     Returns:
         embeddings_u: embeddings corresponding to the unlabeled data
         embeddings_l: embeddings corresponding to the labeled data
         sorted_labels: labels corresponding to the labeled samples sorted according to their labels
     """
-    
+
     embeddings_l = []
     labels = []
     embeddings_u = []
-    
-   
+
+
     model.eval()
     with torch.no_grad():
         for data, target in labeled_loader:
@@ -524,26 +678,26 @@ def get_embedding(model, device, labeled_loader, unlabeled_loader):
     embeddings_u = torch.cat(embeddings_u)
     labels = torch.cat(labels).float()
     labels=labels.reshape(-1,1)
-    
+
     return embeddings_u, embeddings_l, labels
 
 
 
 def form_queries(embeddings_u, embeddings_l, labels, n_classes=5, num_neighbors=5, topk = 5, norm = 2):
-        
+
     """
     Find the nearest labeled samples from every class to each unlabeled sample
-    
+
     Arguments:
         embeddings_u: embeddings corresponding to the unlabeled samples, of shape (n_u, d)
         embeddings_l: embeddings corresponding to the unlabeled samples, of shape (n_l, d)
         norm: The norm to be used to compute distances.
-    
+
     Returns:
-        candidate_queries: matrix of shape (n_u, num_classes) containing distances between unlabeled samples 
+        candidate_queries: matrix of shape (n_u, num_classes) containing distances between unlabeled samples
                            and the nearest neighbors
     """
-    
+
     distances = torch.cdist(embeddings_l, embeddings_u)
     dist_std = torch.std(distances)
     print('Dist std: {}'.format(dist_std))
@@ -565,27 +719,27 @@ def form_queries(embeddings_u, embeddings_l, labels, n_classes=5, num_neighbors=
         candidate_queries.append(nearest_neighbors[0])
 
     candidate_queries = torch.cat(candidate_queries).t()
-    
+
     queries, _ = torch.topk(candidate_queries, num_neighbors, dim = 1, largest=False)
     print(queries.size())
-    
+
     return pseudo_labels, queries, dist_std, mu
 
 
 def class_probabilities(distances, mu):
     """
     Compute the class probabilities
-    
+
     Inputs:
         distances: The precomputed set of pairwise distances between a and each body object,
         mu: Optional regularization parameter, set to 0.5 to ignore
     returns:
         prob: The probability corresponding to each class
     """
-    
+
     prob = 1 / (distances**2 + mu)
     prob = prob / torch.sum(prob, dim=1, keepdim=True)
-        
+
     return prob
 
 
@@ -593,7 +747,7 @@ def mutual_information(device, query, num_samples, dist_std, mu):
     """
     This method corresponds to the mutual information calculation specified in Section 3.1
     Specifically, the method returns the result of inputting the method parameters into formula (9).
-    
+
     Arguments:
         X: An Nxd embedding of objects
         head: The head of the tuple comparison under consideration
@@ -604,19 +758,19 @@ def mutual_information(device, query, num_samples, dist_std, mu):
     returns:
         information: Mutual information as specified in (9) in Section 3.1
     """
-    
+
     distances = []
-        
+
     for i in range(query.shape[0]):
 
         # mean = query[i].item()
         # size = (num_samples,1)
-        
+
         distances.append(torch.abs(torch.normal(query[i].item(), dist_std.item(), (num_samples,1))))
-        
+
     distances = torch.squeeze(torch.stack(distances, dim=2), dim=1)
     distances = distances.to(device)
-    
+
     probability_samples = class_probabilities(distances, mu)
     entropy_samples = -torch.sum(probability_samples * torch.log2(probability_samples), dim=1)
     expected_probabilities = torch.sum(probability_samples, dim=0, keepdim=True) / num_samples

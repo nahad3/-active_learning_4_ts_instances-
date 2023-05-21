@@ -8,18 +8,38 @@ import matplotlib.pyplot as plt
 
 plt.rcParams.update({'font.size': 30})
 
-n_samples = 20
-n_total = 280
-num_trials = 5
-x = np.arange(n_samples, n_total+1, n_samples)
-# x = range(0, n_total, n_samples)
 
-data_type  = 'pos_robot_B'
+
+
+
+dict_dataset = {0:'vel_robot_B',1: 'vel_robot_C',2:'pos_robot_C',3:'pos_robot_B',4:'high_freq_sinusoid',5:'low_freq_sinusoid'}
+'Chose corresponding dictionary number'
+
+data_idx = 5
+
+#data_type  = 'vel_robot_B'
+data_type  = dict_dataset[data_idx]
 base_path = f'./results/{data_type}'
 
-file_list = ['result_InfoNN.npz','result_Experimental method.npz','result_Coreset.npz','result_max entropy.npz','result_random.npz']
+'Choose the appropriate  result files in the list'
+
+#file_list = ['result_InfoNN.npz','result_Experimental method.npz','result_Coreset.npz','result_max entropy.npz','result_random.npz']
+file_list = ['result3_Experimental method.npz','result3_random.npz',]
+
 color_list = ['b','g','r','y','m'] # ','tab:red','tab:green']
 fig, ax = plt.subplots()
+
+path_load = os.path.join(base_path,file_list[0])
+accuracy_array = np.load(path_load)
+
+n_samples = accuracy_array['no_queries_round'].item()
+#n_total =   220
+
+#total points x times points added
+n_total = accuracy_array['no_queries_round'].item()*accuracy_array['acc_list'].shape[-1]
+num_trials = 5
+
+x = np.arange(n_samples, n_total+1, n_samples)
 
 for k in range(0,len(file_list)):
     path_load = os.path.join(base_path,file_list[k])
@@ -34,12 +54,14 @@ for k in range(0,len(file_list)):
 
 
 # ax.legend(["Info-NN(with clustering)", "K-Center", "MaxEntropy", "Margin Sampling", "BatchBALD", "Random"], loc=4)
-leg = plt.legend(["Info-NN", "Experimental method", "Coreset", "Max k entropy","Random"], loc=4, prop={'size': 30})
+#leg = plt.legend(["Info-NN", "Experimental method", "Coreset", "Max k entropy","Random"], loc=4, prop={'size': 30})
+leg = plt.legend(["Experimental method","Random" ]) # ,"Experimental method 2"], loc=4, prop={'size': 30})
+#leg = plt.legend(["Experimental method max entropy" ])
 leg.get_frame().set_facecolor('none')
 leg.get_frame().set_linewidth(0.0)
-plt.xticks(x)
+plt.xticks(np.arange(n_samples, n_total+1, 40))
 plt.xlabel('Number of labels')
 plt.ylabel('Classification Accuracy')
-
+plt.title(data_type)
 fig.set_size_inches(12, 9)
 plt.savefig(f'./results/plots/{data_type}.png', dpi=100, bbox_inches='tight')

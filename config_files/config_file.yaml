@@ -1,0 +1,23 @@
+---
+  robot:
+    input_dims: 12
+    output_dims:  8
+    hidden_dims:  66
+    depth:  5
+    enc_out_dims: 66
+    proj_dims:  66
+    dof:    'pos'
+  low_freq_sinusoid:
+    input_dims: 1
+    output_dims:  8
+    hidden_dims:  15
+    depth:  5
+    enc_out_dims: 66
+    proj_dims:  66
+  high_freq_sinusoid:
+    input_dims: 1
+    output_dims:  8
+    hidden_dims:  15
+    depth:  5
+    enc_out_dims: 66
+    proj_dims:  66
