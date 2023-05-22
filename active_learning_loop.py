@@ -388,7 +388,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     probs = torch.nn.functional.softmax(src_lbl_clfr_reshaped, dim=1)
                     entropy = torch.distributions.Categorical(probs=probs).entropy()
                     entropy = entropy.detach().cpu().numpy()
-                    if args.args.entropy_prcntile is not None:
+                    if args.entropy_prcntile is not None:
                         args.entropy_thresh = np.percentile(entropy,args.entropy_prcntile)
                     entrop_filt = np.where(entropy > args.entropy_thresh)[0]
 
@@ -485,8 +485,9 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
                     top2_probs = torch.topk(probs, 2, dim=1)[0]
 
                     marg_confd = 1-(top2_probs[:,0] - top2_probs[:,1])
-                    if args.args.marg_confd_prcntile is not None:
-                        args.marg_confd_thresh = np.percentile(marg_confd,args.marg_confd_prcntile)
+                    marg_confd = marg_confd.detach().cpu().numpy()
+                    if args.entropy_prcntile is not None:
+                        args.marg_confd_thresh = np.percentile(marg_confd,args.entropy_prcntile)
                     marg_confd_filt = np.where(marg_confd > args.marg_confd_thresh)[0]
 
 

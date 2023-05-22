@@ -24,7 +24,7 @@ base_path = f'./results/{data_type}'
 'Choose the appropriate  result files in the list'
 
 #file_list = ['result_InfoNN.npz','result_Experimental method.npz','result_Coreset.npz','result_max entropy.npz','result_random.npz']
-file_list = ['result3_Experimental method.npz','result3_random.npz',]
+file_list = ['result3_Experimental method.npz','result3_random.npz','result3_InfoNN.npz','result3_max entropy.npz','result3_Coreset.npz']
 
 color_list = ['b','g','r','y','m'] # ','tab:red','tab:green']
 fig, ax = plt.subplots()
@@ -55,7 +55,7 @@ for k in range(0,len(file_list)):
 
 # ax.legend(["Info-NN(with clustering)", "K-Center", "MaxEntropy", "Margin Sampling", "BatchBALD", "Random"], loc=4)
 #leg = plt.legend(["Info-NN", "Experimental method", "Coreset", "Max k entropy","Random"], loc=4, prop={'size': 30})
-leg = plt.legend(["Experimental method","Random" ]) # ,"Experimental method 2"], loc=4, prop={'size': 30})
+leg = plt.legend(["Experimental method","Random","InfoNN","Max k entropy","Coreset" ]) # ,"Experimental method 2"], loc=4, prop={'size': 30})
 #leg = plt.legend(["Experimental method max entropy" ])
 leg.get_frame().set_facecolor('none')
 leg.get_frame().set_linewidth(0.0)
