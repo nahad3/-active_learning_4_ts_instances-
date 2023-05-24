@@ -23,7 +23,7 @@ parser = argparse.ArgumentParser()
 
 
 
-parser.add_argument('--no_runs',type=int,default=5,help='gpu for device')
+parser.add_argument('--no_runs',type=int,default=1,help='gpu for device')
 parser.add_argument('--gpu',type=int,default=0,help='gpu for device')
 parser.add_argument('--dataset_cat',type=int,default=0,help='{0:"robots",1: low_freq,2:high_freq}')
 parser.add_argument('--src_dom',type=str,default='C',help='Source domain (B or C)')
@@ -32,7 +32,7 @@ parser.add_argument('--load', type=int,default=0, help='load DA model')
 parser.add_argument('--save_path_results', type=str,default='./results/', help='path storing results')
 parser.add_argument('--model_pth',type=str,default='saved_models_ssl/ssl_save_robots_no_fixed',help='file path to saved model')
 parser.add_argument('--test', type=int,default=0, help='test or not')
-parser.add_argument('--total_budget',type=int,default = 601,help="total number of training points (total pool at the end of all training)")
+parser.add_argument('--total_budget',type=int,default = 41,help="total number of training points (total pool at the end of all training)")
 parser.add_argument('--no_queries', type=int,default=20, help='No of queries to add to pool after each training round')
 parser.add_argument('--query_type',type=int,default=4,help='{0: for random queriy 1: for max entropy 2: for entropy frequency,3: "InfoNN",4: "Coreset,6:Exp method with margin conf"} ')
 parser.add_argument('--train', type=int,default=1, help='train or not')
@@ -56,6 +56,8 @@ parser.add_argument('--no_clusters',type=int,default=10,help='Number of clusters
 parser.add_argument('--config_file',type=str,default= './config_files/config_file.yaml',help='Config file for storing network configs')
 parser.add_argument('--bandwidth',type=float,default= 4,help='bandwidth for the 5th custom method')
 
+
+
 np.random.seed(2023)
 torch.manual_seed(2023)
 
@@ -78,7 +80,7 @@ elif args.dataset_cat == 2:
 if not os.path.exists(args.save_path_results):
     os.makedirs(args.save_path_results)
 
-args.save_path_results = os.path.join(args.save_path_results, args.dataset_str)
+
 if not os.path.exists(args.save_path_results):
     os.makedirs(args.save_path_results)
 
@@ -93,7 +95,7 @@ wandb.init(config=args_dict, project=project,name=name)
 
 
 'select list of query type methods to run. Look at query type args helper to look at number to method mapping'
-list_q = [2,6]
+list_q = [0,1,2]
 for q in list_q:
     'iterating through all active learning methods'
     args.query_type = q
@@ -130,13 +132,14 @@ for q in list_q:
                                                                             ,6:"Experimental method with marg entrp"}
     args.dict_type = dict_type
     #full_path_save_results = os.path.join(args.save_path_results,f'result_{dict_type[args.query_type]}')
-    full_path_save_results = os.path.join(args.save_path_results, f'result4_{dict_type[args.query_type]}')
+    full_path_save_results = os.path.join(args.save_path_results, f'result5_{dict_type[args.query_type]}')
     args.file_path_save_src_feats = os.path.join(args.file_path_model_base, args.dataset_str)
     if not os.path.exists(args.file_path_save_src_feats):
         os.makedirs(args.file_path_save_src_feats)
     args.file_path_save_clfr_feats = os.path.join(args.file_path_model_base, args.dataset_str)
     args.file_path_save_src_feats = os.path.join(args.file_path_save_src_feats,'src_feats')
     args.file_path_save_src_clfr = os.path.join(args.file_path_save_clfr_feats, 'clfr')
+
 
 
 
@@ -226,7 +229,7 @@ for q in list_q:
         if args.train_pre_acq_model:
             if q == 0:
                 'Only run the inital training for the first run if running through all models'
-                args.path_pre_active_model = args.save_path_results
+
                 for k in range(0,args.no_runs):
                     #new model initializations
                     model_feats = TSEncoder(input_dims=input_dims, output_dims=output_dims,
