@@ -232,7 +232,8 @@ class LeggedRobotsDataset_semisup_DA(Dataset):
         self.data= self.load()
         self.dof = dof
         self.normalize()
-        self.idx_b,self.idx_c = self.get_src_trgt_indices()
+        self.idx_b = src_list
+        self.idx_c = trg_list
         self.x_src,self.y_src,self.x_trgt, self.y_trgt = self.prepare_src_trgt_data(src_idx=list(self.idx_b),trgt_idx=list(self.idx_c),window=window,stride=stride,dof = dof)
         self.no_classes = len(np.unique(self.y_src.reshape(-1,)))
     def load(self):

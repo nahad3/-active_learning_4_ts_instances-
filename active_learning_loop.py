@@ -609,7 +609,7 @@ def train_active_loop(model_feats,model_clfr,train_dataloader,args,device,wanb_c
 
             visualize = 0
             # plot representations and entropy after training round (only for the first run if multiple runs)
-            if visualize == 1 and args.run_no == 0 and (pool.reshape(-1,).shape[0])%10 == 0:
+            if visualize == 1 and args.run_no == 0 and (pool.reshape(-1,).shape[0])%40 == 0:
                 i = 0
                 list_train_loader = list(train_dataloader)
                 x = list_train_loader[0]['x'][i]
