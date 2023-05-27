@@ -23,22 +23,22 @@ parser = argparse.ArgumentParser()
 
 
 
-parser.add_argument('--no_runs',type=int,default=1,help='gpu for device')
+parser.add_argument('--no_runs',type=int,default=5,help='gpu for device')
 parser.add_argument('--gpu',type=int,default=0,help='gpu for device')
-parser.add_argument('--dataset_cat',type=int,default=0,help='{0:"robots",1: low_freq,2:high_freq}')
-parser.add_argument('--src_dom',type=str,default='C',help='Source domain (B or C)')
-parser.add_argument('--trgt_dom',type=str,default='B',help='Source domain (B or C)')
+parser.add_argument('--dataset_cat',type=int,default=1,help='{0:"robots",1: low_freq,2:high_freq}')
+parser.add_argument('--src_dom',type=str,default='B',help='Source domain (B or C)')
+parser.add_argument('--trgt_dom',type=str,default='C',help='Source domain (B or C)')
 parser.add_argument('--load', type=int,default=0, help='load DA model')
 parser.add_argument('--save_path_results', type=str,default='./results/', help='path storing results')
 parser.add_argument('--model_pth',type=str,default='saved_models_ssl/ssl_save_robots_no_fixed',help='file path to saved model')
 parser.add_argument('--test', type=int,default=0, help='test or not')
-parser.add_argument('--total_budget',type=int,default = 41,help="total number of training points (total pool at the end of all training)")
+parser.add_argument('--total_budget',type=int,default = 160,help="total number of training points (total pool at the end of all training)")
 parser.add_argument('--no_queries', type=int,default=20, help='No of queries to add to pool after each training round')
 parser.add_argument('--query_type',type=int,default=4,help='{0: for random queriy 1: for max entropy 2: for entropy frequency,3: "InfoNN",4: "Coreset,6:Exp method with margin conf"} ')
 parser.add_argument('--train', type=int,default=1, help='train or not')
-parser.add_argument('--batch_size', type=int,default=16, help='train or not')
+parser.add_argument('--batch_size', type=int,default=12, help='train or not')
 parser.add_argument('--visualize', type=int,default=0, help='train or not')
-parser.add_argument('--dof', type=str,default='vel', help='type of dataset')
+parser.add_argument('--dof', type=str,default='pos', help='type of dataset')
 parser.add_argument('--backbone_path',type=str,default = './saved_models_ssl/robo_tcn/robo_TS2Vec_bbone_new')
 parser.add_argument('--dataset_type',type=str,default = 'small')
 parser.add_argument('--weight_target_sup',type=float,default = 1)
@@ -49,10 +49,10 @@ parser.add_argument('--file_path_model_base',type=str,default='./saved_models/ro
 parser.add_argument('--window',type=float,default=1500,help='default load')
 parser.add_argument('--stride',type=float,default=1500,help='default load')
 parser.add_argument('--path_pre_active_model',type=str,default='./saved_models/first_round_models',help='path to save init models')
-parser.add_argument('--train_pre_acq_model',type=bool,default=True,help='Train model before any active pooling.')
+parser.add_argument('--train_pre_acq_model',type=bool,default=False,help='Train model before any active pooling.')
 parser.add_argument('--entropy_thresh',type=float,default=0.55,help='gEntropy threshold for custom method')
-parser.add_argument('--entropy_prcntile',type=float,default=95,help='gEntropy percentile used for calculating a threshold. If None, use a fixed threshold')
-parser.add_argument('--no_clusters',type=int,default=10,help='Number of clusters for custom entropy method')
+parser.add_argument('--entropy_prcntile',type=float,default=75,help='gEntropy percentile used for calculating a threshold. If None, use a fixed threshold')
+parser.add_argument('--no_clusters',type=int,default=20,help='Number of clusters for custom entropy method')
 parser.add_argument('--config_file',type=str,default= './config_files/config_file.yaml',help='Config file for storing network configs')
 parser.add_argument('--bandwidth',type=float,default= 4,help='bandwidth for the 5th custom method')
 
@@ -77,6 +77,8 @@ elif args.dataset_cat == 1:
     args.dataset_str = dataset_dict[args.dataset_cat]
 elif args.dataset_cat == 2:
     args.dataset_str = dataset_dict[args.dataset_cat]
+
+args.save_path_results = os.path.join(args.save_path_results,args.dataset_str  )
 if not os.path.exists(args.save_path_results):
     os.makedirs(args.save_path_results)
 
@@ -95,7 +97,7 @@ wandb.init(config=args_dict, project=project,name=name)
 
 
 'select list of query type methods to run. Look at query type args helper to look at number to method mapping'
-list_q = [0,1,2]
+list_q = [2,3,4,6]
 for q in list_q:
     'iterating through all active learning methods'
     args.query_type = q
@@ -132,7 +134,7 @@ for q in list_q:
                                                                             ,6:"Experimental method with marg entrp"}
     args.dict_type = dict_type
     #full_path_save_results = os.path.join(args.save_path_results,f'result_{dict_type[args.query_type]}')
-    full_path_save_results = os.path.join(args.save_path_results, f'result5_{dict_type[args.query_type]}')
+    full_path_save_results = os.path.join(args.save_path_results, f'result4_{dict_type[args.query_type]}')
     args.file_path_save_src_feats = os.path.join(args.file_path_model_base, args.dataset_str)
     if not os.path.exists(args.file_path_save_src_feats):
         os.makedirs(args.file_path_save_src_feats)
@@ -285,7 +287,7 @@ for q in list_q:
             acc_list_runs.append(acc_list)
 
     np.savez(full_path_save_results, acc_list = np.asarray(acc_list_runs) , f1_list = np.asarray(f1_score_list),total_budget =args.total_budget,
-             no_queries_round = args.no_queries)
+            no_queries_round = args.no_queries)
 
 
 
